@@ -1,7 +1,3 @@
-# 来源：公众号@小林coding
-# 后端八股网站：xiaolincoding.com
-# Agent网站：xiaolinnote.com
-# 简历模版：jianli.xiaolinnote.com
 from __future__ import annotations
 
 import asyncio
@@ -632,6 +628,11 @@ class MewCodeApp(App):
         self._mcp_connecting: bool = False
         self._teammate_tree: TeammateTree | None = None
         self._teammate_timer = None
+        # Harness 配置（由 __main__.py 在构造后设置）
+        self._compact_config: Any = None
+        self._critic_config: Any = None
+        self._rate_limit_config: Any = None
+        self._allow_self_modification: bool = False
 
     @staticmethod
     def _make_banner(model: str = "", work_dir: str = "") -> RichText:
@@ -891,6 +892,13 @@ class MewCodeApp(App):
         if self._mcp_server_configs:
             self._mcp_init_task = asyncio.create_task(self._init_mcp())
 
+        # --- Loop Engineering 初始化 ---
+        self._init_workflow_engine(provider, work_dir)
+        self._init_scheduler(work_dir)
+
+        # --- Harness Engineering 初始化 ---
+        self._init_harness(work_dir, provider)
+
         self.query_one("#model-label", Static).update(provider.model)
         work_dir = os.getcwd()
         self.query_one("#title-bar", Static).update(
@@ -922,6 +930,132 @@ class MewCodeApp(App):
         await resolve_context_window(provider)
         if self.agent is not None:
             self.agent.context_window = provider.get_context_window()
+
+    # -----------------------------------------------------------------
+    # Loop Engineering 初始化
+    # -----------------------------------------------------------------
+
+    def _init_workflow_engine(self, provider: ProviderConfig, work_dir: str) -> None:
+        """初始化 Workflow 编排引擎并注册相关工具。"""
+        from mewcode.workflow.engine import WorkflowEngine
+        from mewcode.workflow.tool import ListWorkflowsTool, WorkflowTool
+
+        # 创建 engine（agent_factory 延迟绑定）
+        self.workflow_engine = WorkflowEngine(
+            work_dir=work_dir,
+            on_log=lambda msg: self._show_system_message(f"[workflow] {msg}"),
+        )
+
+        # 注册工具
+        self.registry.register(WorkflowTool(
+            engine=self.workflow_engine,
+            task_manager=self.task_manager,
+        ))
+        self.registry.register(ListWorkflowsTool(engine=self.workflow_engine))
+
+        # 注入到 Agent
+        if self.agent:
+            self.agent.workflow_engine = self.workflow_engine
+
+    def _init_scheduler(self, work_dir: str) -> None:
+        """初始化调度系统。"""
+        from mewcode.scheduler.store import CronStore
+        from mewcode.scheduler.runtime import SchedulerRuntime
+        from mewcode.scheduler.wakeup import WakeupScheduler
+        from mewcode.scheduler.tools import (
+            CronCreateTool, CronDeleteTool, CronListTool, ScheduleWakeupTool,
+        )
+
+        self.cron_store = CronStore(work_dir)
+        self.wakeup_scheduler = WakeupScheduler()
+
+        self.scheduler_runtime = SchedulerRuntime(
+            cron_store=self.cron_store,
+            wakeup_scheduler=self.wakeup_scheduler,
+            on_fire=lambda job: self._on_scheduled_fire(job),
+        )
+
+        # 注册 Cron 工具
+        self.registry.register(CronCreateTool(self.cron_store))
+        self.registry.register(CronDeleteTool(self.cron_store))
+        self.registry.register(CronListTool(self.cron_store))
+        self.registry.register(ScheduleWakeupTool(self.wakeup_scheduler))
+
+        # 启动调度器后台循环
+        asyncio.create_task(self.scheduler_runtime.start())
+
+    def _on_scheduled_fire(self, job: Any) -> None:
+        """调度任务触发时的回调：注入系统消息到对话。"""
+        if self.agent and self.conversation:
+            reminder = self.scheduler_runtime.inject_job(job)
+            self.conversation.add_system_reminder(reminder)
+            self._show_system_message(f"[scheduler] job fired: {job.prompt[:60]}")
+
+    # -----------------------------------------------------------------
+    # Harness Engineering 初始化
+    # -----------------------------------------------------------------
+
+    def _init_harness(self, work_dir: str, provider: ProviderConfig) -> None:
+        """初始化 Harness 增强组件。"""
+        from mewcode.context.critic import CompletenessCritic
+        from mewcode.permissions.audit import AuditLogger
+        from mewcode.permissions.rate_limit import RateLimiter
+        from mewcode.agents.metrics import MetricsCollector
+        from mewcode.harness.hook_manager import HookManager
+        from mewcode.harness.config_manager import ConfigManager
+        from mewcode.harness.permission_manager import PermissionManager
+        from mewcode.harness.tools import (
+            AddHookTool, RemoveHookTool, ListHooksTool,
+            UpdateConfigTool,
+            AddPermissionRuleTool, RemovePermissionRuleTool,
+            ManageMemoryTool,
+        )
+
+        # 从配置读取
+        compact_cfg = getattr(self, '_compact_config', None)
+        critic_cfg = getattr(self, '_critic_config', None)
+        rate_cfg = getattr(self, '_rate_limit_config', None)
+        allow_self = getattr(self, '_allow_self_modification', False)
+
+        # Completeness Critic
+        critic_enabled = critic_cfg.enabled if critic_cfg else False
+        self.critic = CompletenessCritic(enabled=critic_enabled)
+
+        # Audit Logger
+        session_id = self.session.session_id if self.session else ""
+        self.audit_logger = AuditLogger(work_dir, session_id=session_id)
+
+        # Rate Limiter
+        rate_enabled = rate_cfg.enabled if rate_cfg else True
+        rate_default = rate_cfg.default_max_per_minute if rate_cfg else 30
+        rate_per_tool = rate_cfg.per_tool if rate_cfg else {"Bash": 10, "WriteFile": 20}
+        self.rate_limiter = RateLimiter(
+            enabled=rate_enabled,
+            default_max_per_minute=rate_default,
+            per_tool_limits=rate_per_tool,
+        )
+
+        # Metrics Collector
+        self.metrics_collector = MetricsCollector(work_dir, session_id=session_id)
+
+        # Harness Managers
+        self.hook_manager = HookManager(hook_engine=self.hook_engine)
+        self.config_manager = ConfigManager()
+        self.permission_manager_harness = PermissionManager(
+            work_dir=work_dir,
+            rule_engine=(
+                self.agent.permission_checker.rule_engine
+                if self.agent and self.agent.permission_checker
+                else None
+            ),
+        )
+
+        # 注入到 Agent
+        if self.agent:
+            self.agent.critic = self.critic
+            self.agent.audit_logger = self.audit_logger
+            self.agent.rate_limiter = self.rate_limiter
+            self.agent.metrics_collector = self.metrics_collector
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
         if event.option_list.id == "provider-list":

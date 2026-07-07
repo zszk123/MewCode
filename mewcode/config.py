@@ -129,6 +129,24 @@ class WorktreeConfig:
 
 
 @dataclass
+class CompactConfig:
+    utilization_threshold: float = 0.85
+    min_keep_messages: int = 3
+
+
+@dataclass
+class CriticConfig:
+    enabled: bool = False
+
+
+@dataclass
+class RateLimitConfig:
+    enabled: bool = True
+    default_max_per_minute: int = 30
+    per_tool: dict[str, int] = field(default_factory=lambda: {"Bash": 10, "WriteFile": 20})
+
+
+@dataclass
 class AppConfig:
     providers: list[ProviderConfig]
     permission_mode: str = "default"
@@ -139,6 +157,11 @@ class AppConfig:
     worktree: WorktreeConfig = field(default_factory=WorktreeConfig)
     teammate_mode: str = ""
     enable_coordinator_mode: bool = False
+    # Harness Engineering 新增
+    compact: CompactConfig = field(default_factory=CompactConfig)
+    critic: CriticConfig = field(default_factory=CriticConfig)
+    rate_limit: RateLimitConfig = field(default_factory=RateLimitConfig)
+    allow_self_modification: bool = False
 
 
 def _load_single_file(path: Path) -> AppConfig:
@@ -192,6 +215,20 @@ def _load_single_file(path: Path) -> AppConfig:
         worktree=worktree_cfg,
         teammate_mode=validated["teammate_mode"],
         enable_coordinator_mode=validated["enable_coordinator_mode"],
+        # Harness Engineering 新增
+        compact=CompactConfig(
+            utilization_threshold=validated.get("compact", {}).get("utilization_threshold", 0.85),
+            min_keep_messages=validated.get("compact", {}).get("min_keep_messages", 3),
+        ),
+        critic=CriticConfig(
+            enabled=validated.get("critic", {}).get("enabled", False),
+        ),
+        rate_limit=RateLimitConfig(
+            enabled=validated.get("rate_limit", {}).get("enabled", True),
+            default_max_per_minute=validated.get("rate_limit", {}).get("default_max_per_minute", 30),
+            per_tool=validated.get("rate_limit", {}).get("per_tool", {"Bash": 10, "WriteFile": 20}),
+        ),
+        allow_self_modification=validated.get("allow_self_modification", False),
     )
 
 

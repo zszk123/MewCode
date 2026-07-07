@@ -73,6 +73,11 @@ def main() -> None:
         enable_coordinator_mode=config.enable_coordinator_mode,
         driver_class=NoAltScreenDriver,
     )
+    # 注入 Harness 配置到 app 实例（app 在 _init_harness 中读取）
+    app._compact_config = config.compact
+    app._critic_config = config.critic
+    app._rate_limit_config = config.rate_limit
+    app._allow_self_modification = config.allow_self_modification
     app.run()
 
 

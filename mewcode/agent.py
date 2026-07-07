@@ -309,6 +309,13 @@ class Agent:
         instructions_content: str = "",
         memory_manager: MemoryManager | None = None,
         hook_engine: HookEngine | None = None,
+        # === Loop Engineering 新增 ===
+        workflow_engine: Any = None,
+        critic: Any = None,
+        # === Harness Engineering 新增 ===
+        audit_logger: Any = None,
+        rate_limiter: Any = None,
+        metrics_collector: Any = None,
     ) -> None:
         self.client = client
         self.registry = registry
@@ -347,6 +354,13 @@ class Agent:
         self._team_manager: Any = None
         self.notification_fn: Callable[[], list[str]] | None = None
         self.file_history: Any = None
+        # Loop Engineering
+        self.workflow_engine = workflow_engine
+        self.critic = critic
+        # Harness Engineering
+        self.audit_logger = audit_logger
+        self.rate_limiter = rate_limiter
+        self.metrics_collector = metrics_collector
 
     @property
     def _transcript_path(self) -> str:
@@ -604,6 +618,28 @@ class Agent:
                     response.text, thinking_blocks=conv_thinking
                 )
                 self._loop_count += 1
+
+                # Completeness Critic: 检查是否有遗漏
+                if self.critic is not None and self.critic.enabled:
+                    try:
+                        critic_result = await self.critic.check(
+                            conversation, response.text
+                        )
+                        if critic_result.status == "suggestions":
+                            suggestion_text = self.critic.format_suggestions(critic_result)
+                            if suggestion_text:
+                                conversation.add_system_reminder(suggestion_text)
+                                yield HookEvent(
+                                    hook_id="critic",
+                                    event="critic",
+                                    output=suggestion_text,
+                                    success=True,
+                                )
+                                # 不 break — 让 Agent 继续处理建议
+                                continue
+                    except Exception as e:
+                        log.debug("Critic check failed: %s", e)
+
                 if (
                     self._loop_count % MEMORY_EXTRACTION_INTERVAL == 0
                     and self.memory_manager
@@ -877,6 +913,25 @@ class Agent:
             yield result, elapsed, is_unknown
             return
 
+        # 速率限制检查
+        if self.rate_limiter is not None:
+            if not self.rate_limiter.acquire(tc.tool_name):
+                result = ToolResult(
+                    output=f"Rate limit exceeded: {tc.tool_name} "
+                           f"({self.rate_limiter.get_status_text(tc.tool_name)})",
+                    is_error=True,
+                )
+                elapsed = time.monotonic() - start
+                if self.audit_logger:
+                    self.audit_logger.log_decision(
+                        tool_name=tc.tool_name,
+                        params_summary=str(tc.arguments)[:200],
+                        decision="deny",
+                        source_layer="rate_limit",
+                    )
+                yield result, elapsed, is_unknown
+                return
+
         # 权限检查
         if self.permission_checker:
             decision = self.permission_checker.check(tool, tc.arguments)
@@ -887,6 +942,14 @@ class Agent:
                     is_error=True,
                 )
                 elapsed = time.monotonic() - start
+                if self.audit_logger:
+                    self.audit_logger.log_decision(
+                        tool_name=tc.tool_name,
+                        params_summary=str(tc.arguments)[:200],
+                        decision="deny",
+                        source_layer=decision.source or "unknown",
+                        rule_id=decision.rule_id or "",
+                    )
                 yield result, elapsed, is_unknown
                 return
 
