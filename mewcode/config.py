@@ -143,6 +143,23 @@ class RateLimitConfig:
 
 
 @dataclass
+class EvolutionConfig:
+    """自进化子系统配置。"""
+
+    enabled: bool = False
+    min_traces_trigger: int = 30
+    max_traces_per_evolution: int = 50
+    min_traces_per_evolution: int = 30
+    min_failure_recurrence: int = 3
+    token_increase_threshold: float = 0.15
+    deprecation_task_threshold: int = 60
+    backup_dir: str = "harness/backup"
+    traces_dir: str = "harness/traces"
+    skills_dir: str = "harness/skills"
+    skill_meta_file: str = "harness/skills/skill_meta.json"
+
+
+@dataclass
 class AppConfig:
     providers: list[ProviderConfig]
     permission_mode: str = "default"
@@ -158,6 +175,9 @@ class AppConfig:
     critic: CriticConfig = field(default_factory=CriticConfig)
     rate_limit: RateLimitConfig = field(default_factory=RateLimitConfig)
     allow_self_modification: bool = False
+    # Evolution Engineering 新增
+    allow_self_evolution: bool = False
+    evolution: EvolutionConfig = field(default_factory=EvolutionConfig)
 
 
 def _load_single_file(path: Path) -> AppConfig:
@@ -225,6 +245,16 @@ def _load_single_file(path: Path) -> AppConfig:
             per_tool=validated.get("rate_limit", {}).get("per_tool", {"Bash": 10, "WriteFile": 20}),
         ),
         allow_self_modification=validated.get("allow_self_modification", False),
+        allow_self_evolution=validated.get("allow_self_evolution", False),
+        evolution=EvolutionConfig(
+            enabled=validated.get("evolution", {}).get("enabled", False),
+            min_traces_trigger=validated.get("evolution", {}).get("min_traces_trigger", 30),
+            max_traces_per_evolution=validated.get("evolution", {}).get("max_traces_per_evolution", 50),
+            min_traces_per_evolution=validated.get("evolution", {}).get("min_traces_per_evolution", 30),
+            min_failure_recurrence=validated.get("evolution", {}).get("min_failure_recurrence", 3),
+            token_increase_threshold=validated.get("evolution", {}).get("token_increase_threshold", 0.15),
+            deprecation_task_threshold=validated.get("evolution", {}).get("deprecation_task_threshold", 60),
+        ),
     )
 
 

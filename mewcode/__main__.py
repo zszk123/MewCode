@@ -78,6 +78,9 @@ def main() -> None:
     app._critic_config = config.critic
     app._rate_limit_config = config.rate_limit
     app._allow_self_modification = config.allow_self_modification
+    # 注入 Evolution 配置
+    app._allow_self_evolution = config.allow_self_evolution
+    app._evolution_config = config.evolution
     app.run()
 
 

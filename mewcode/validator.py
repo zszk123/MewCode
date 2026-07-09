@@ -213,6 +213,45 @@ def validate_teammate_mode(mode: object) -> str:
     return mode
 
 
+def validate_evolution(raw_evo: dict | None) -> dict:
+    """校验 evolution 配置段，返回清洗后的配置字典。"""
+    defaults: dict = {
+        "enabled": False,
+        "min_traces_trigger": 30,
+        "max_traces_per_evolution": 50,
+        "min_traces_per_evolution": 30,
+        "min_failure_recurrence": 3,
+        "token_increase_threshold": 0.15,
+        "deprecation_task_threshold": 60,
+    }
+
+    if raw_evo is None:
+        return defaults
+
+    if not isinstance(raw_evo, dict):
+        raise ConfigError("'evolution' must be a mapping")
+
+    result: dict = {}
+    for key, default_val in defaults.items():
+        val = raw_evo.get(key, default_val)
+        if key in ("min_traces_trigger", "max_traces_per_evolution",
+                    "min_traces_per_evolution", "min_failure_recurrence",
+                    "deprecation_task_threshold"):
+            if not isinstance(val, int) or val <= 0:
+                raise ConfigError(f"'evolution.{key}' must be a positive integer, got {val!r}")
+        elif key == "token_increase_threshold":
+            if not isinstance(val, (int, float)) or val <= 0 or val > 1:
+                raise ConfigError(
+                    f"'evolution.{key}' must be a float between 0 and 1, got {val!r}"
+                )
+        elif key == "enabled":
+            if not isinstance(val, bool):
+                raise ConfigError(f"'evolution.{key}' must be a boolean, got {val!r}")
+        result[key] = val
+
+    return result
+
+
 def validate_config_structure(raw: object) -> dict:
     """校验的主入口。校验解析后的原始配置，返回清洗后的字典。
 
@@ -238,4 +277,11 @@ def validate_config_structure(raw: object) -> dict:
         "enable_coordinator_mode": validate_bool_field(
             raw.get("enable_coordinator_mode", False), "enable_coordinator_mode"
         ),
+        "allow_self_modification": validate_bool_field(
+            raw.get("allow_self_modification", False), "allow_self_modification"
+        ),
+        "allow_self_evolution": validate_bool_field(
+            raw.get("allow_self_evolution", False), "allow_self_evolution"
+        ),
+        "evolution": validate_evolution(raw.get("evolution")),
     }

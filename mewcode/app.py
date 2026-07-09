@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import random
 import time as _time
@@ -633,6 +634,9 @@ class MewCodeApp(App):
         self._critic_config: Any = None
         self._rate_limit_config: Any = None
         self._allow_self_modification: bool = False
+        # Evolution 配置（由 __main__.py 在构造后设置）
+        self._allow_self_evolution: bool = False
+        self._evolution_config: Any = None
 
     @staticmethod
     def _make_banner(model: str = "", work_dir: str = "") -> RichText:
@@ -1126,6 +1130,87 @@ class MewCodeApp(App):
             self.agent.audit_logger = self.audit_logger
             self.agent.rate_limiter = self.rate_limiter
             self.agent.metrics_collector = self.metrics_collector
+
+        # --- Evolution Engineering 初始化 ---
+        self._init_evolution(work_dir)
+
+    def _init_evolution(self, work_dir: str) -> None:
+        """初始化自进化子系统。"""
+        allow_evo = getattr(self, '_allow_self_evolution', False)
+        evo_cfg = getattr(self, '_evolution_config', None)
+
+        if not allow_evo or evo_cfg is None:
+            return
+
+        from mewcode.harness.evolution.manager import EvolutionManager
+        from mewcode.harness.evolution.tools import (
+            TriggerEvolutionTool,
+            ListEvolutionsTool,
+            GetEvolutionDetailTool,
+            ListAutoSkillsTool,
+            DeprecateSkillTool,
+        )
+
+        harness_dir = Path(work_dir) / "mewcode" / "harness"
+
+        # 创建 EvolutionManager
+        self.evolution_manager = EvolutionManager(
+            harness_dir=harness_dir,
+            config=evo_cfg,
+            client_factory=self._make_evolution_client(),
+            session_manager=self.session_manager,
+            memory_manager=self.memory_manager,
+            skill_loader=self.skill_loader,
+        )
+
+        # 注册进化工具（受 allow_self_evolution 控制）
+        _log = logging.getLogger(__name__)
+        _tool_candidates: list[tuple[Any, str]] = [
+            (TriggerEvolutionTool(self.evolution_manager), "TriggerEvolution"),
+            (ListEvolutionsTool(self.evolution_manager), "ListEvolutions"),
+            (GetEvolutionDetailTool(self.evolution_manager), "GetEvolutionDetail"),
+            (ListAutoSkillsTool(self.evolution_manager.skill_meta_manager), "ListAutoSkills"),
+            (DeprecateSkillTool(self.evolution_manager.skill_meta_manager), "DeprecateSkill"),
+        ]
+
+        _registered = 0
+        _failed = 0
+        for _tool_inst, _tool_name in _tool_candidates:
+            try:
+                self.registry.register(_tool_inst)
+                _registered += 1
+            except Exception as _exc:
+                _failed += 1
+                _log.error("[evolution] tool registration failed: %s — %s", _tool_name, _exc)
+
+        _log.info("[evolution] tools: %d registered, %d failed", _registered, _failed)
+
+    def _make_evolution_client(self):
+        """创建一个轻量级 LLM 客户端工厂，供进化子系统使用。"""
+        from mewcode.tools.base import TextDelta, StreamEnd
+
+        async def _client(prompt: str, system: str = "", model_hint: str = "haiku") -> str:
+            # 使用已有的 client 进行非流式调用
+            if not hasattr(self, 'client') or self.client is None:
+                raise RuntimeError("LLM client not available")
+
+            from mewcode.conversation import ConversationManager, Message
+            conv = ConversationManager()
+            conv.history = [Message(role="user", content=prompt)]
+
+            collected = ""
+            try:
+                async for event in self.client.stream(conv, system=system):
+                    if isinstance(event, TextDelta):
+                        collected += event.text
+                    elif isinstance(event, StreamEnd):
+                        pass
+            except Exception:
+                pass
+
+            return collected
+
+        return _client
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
         if event.option_list.id == "provider-list":
@@ -2073,6 +2158,15 @@ class MewCodeApp(App):
 
             if self.session:
                 self.session.close()
+
+            # Evolution cleanup: flush traces + check evolution trigger
+            if hasattr(self, 'evolution_manager') and self.evolution_manager is not None:
+                try:
+                    self.evolution_manager.trace_collector.flush()
+                    await self.evolution_manager.check_and_evolve()
+                    self.evolution_manager.cleanup()
+                except Exception:
+                    pass
 
         try:
             await _cleanup()
