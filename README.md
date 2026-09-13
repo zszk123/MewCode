@@ -1024,7 +1024,3 @@ uv run mewcode
 
 uv run pytest
 ```
-
-## License
-
-[MIT](LICENSE)
