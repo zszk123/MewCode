@@ -24,7 +24,7 @@
 
 * **🏗️ 五层分层架构** — 交互层（TUI）、引擎层（Agent 主循环）、工具层（Tool Registry）、记忆层（Memory）、安全层（Permissions），职责清晰、可扩展
 
-* **🔁 Loop Engineering** — Workflow Engine 工作流编排引擎，支持 phase-based 分阶段执行、Journal 断点恢复、预算控制循环（loop\_until\_budget）和 Cron 定时调度系统
+* **🔁 Loop Engineering** — Workflow Engine 工作流编排引擎，支持 phase-based 分阶段执行、Journal 断点恢复、预算控制循环（loop_until_budget）和 Cron 定时调度系统
 
 * **⚙️ Harness Engineering** — 标准化运行基座，提供完整性校验（CompletenessCritic）、审计日志（AuditLogger）、速率限制（RateLimiter）、指标收集（MetricsCollector）四大增强组件，支持 Agent 运行时自调控（Hook/Config/Permission/Memory 动态管理）
 
@@ -32,7 +32,7 @@
 
 * **🤖 Multi-Agent 协作** — 内置子 Agent 分发（Fork / SubAgent）、Team 团队协作（Coordinator 模式），支持多 Agent 并行执行
 
-* \*\* MCP 协议扩展 \*\* — 兼容 Model Context Protocol，可对接外部 MCP Server 动态扩展工具能力
+* ** MCP 协议扩展 ** — 兼容 Model Context Protocol，可对接外部 MCP Server 动态扩展工具能力
 
 * **📦 Skill 技能包** — 内置 commit、review、test 等技能，支持自定义 Skill 扩展，一键激活
 
@@ -40,7 +40,7 @@
 
 * **🛡️ 七层权限拦截** — Plan 模式例外 → 只读命令放行 → 危险命令检测 → 路径沙箱 → 规则引擎 → 权限模式 → 人工确认，保障 Agent 全自动安全运行
 
-* \*\* Hook 钩子系统 \*\* — 支持 session /turn/tool 生命周期 Hook，可自定义前置 / 后置行为
+* ** Hook 钩子系统 ** — 支持 session / turn / tool 生命周期 Hook，可自定义前置 / 后置行为
 
 * **🌲 Worktree 隔离** — 基于 Git worktree 的任务隔离执行，避免影响主工作区
 
@@ -85,7 +85,7 @@
 
 │                 安全层 (Permissions)             │
 
-│   七层拦截 / Sandbox / Rule Engine / Detector    │&#x20;
+│   七层拦截 / Sandbox / Rule Engine / Detector    │ 
 
 │   Harness: Audit/RateLimit/Metrics/Critic       │
 
@@ -118,11 +118,11 @@ Agent 采用标准 ReAct（Reasoning + Acting）循环：
 
 * **WorkflowEngine**：phase-based 工作流编排引擎，支持 Journal 断点恢复、预算追踪（BudgetInfo）
 
-* **循环控制**：`loop_until_count()` / `loop_until_budget()` 提供带干跑保护（dry\_protection=3）的循环模式
+* **循环控制**：`loop_until_count()` / `loop_until_budget()` 提供带干跑保护（dry_protection=3）的循环模式
 
 * **调度系统**：CronStore + SchedulerRuntime + WakeupScheduler 支持 Cron 表达式定时任务与唤醒调度
 
-* **执行追踪**：AgentCallRecord 记录每次调用的完整信息（prompt\_hash、opts\_hash、状态、耗时、token 用量）
+* **执行追踪**：AgentCallRecord 记录每次调用的完整信息（prompt_hash、opts_hash、状态、耗时、token 用量）
 
 ### Harness Engineering - 标准化运行基座
 
@@ -158,7 +158,7 @@ Agent 采用标准 ReAct（Reasoning + Acting）循环：
 
 * **执行轨迹采集（TraceCollector + ExecutionTraceStore）**：每次任务结束后被动收集执行轨迹（成功 / 失败、错误信息、工具使用、token 消耗等），按日分片 JSONL 持久化，自动清理 90 天前旧数据
 
-* **问题分类器（ProblemClassifier）**：用 LLM 分析失败轨迹，识别系统性失败模式 —— 能力缺失（missing\_capability）、重复错误（pattern\_repetition）、工具误用（tool\_misuse）、知识缺口（knowledge\_gap），至少出现 3 次才判定为有效模式
+* **问题分类器（ProblemClassifier）**：用 LLM 分析失败轨迹，识别系统性失败模式 —— 能力缺失（missing_capability）、重复错误（pattern_repetition）、工具误用（tool_misuse）、知识缺口（knowledge_gap），至少出现 3 次才判定为有效模式
 
 * **Skill 自动生成器（SkillGenerator）**：基于失败证据（禁止凭空编造）自动生成 SKILL.md 文件，包含 YAML frontmatter + 触发条件 + 操作步骤
 
@@ -212,9 +212,9 @@ Agent 采用标准 ReAct（Reasoning + Acting）循环：
 
 * **ContentReplacementState**：决策冻结机制保证 prompt cache 一致性，支持 fork 子 agent 继承父 agent 替换状态
 
-* **Layer 2 - 全对话摘要**：触发阈值（context\_window - 13K safety margin）时调用 LLM 生成结构化摘要
+* **Layer 2 - 全对话摘要**：触发阈值（context_window - 13K safety margin）时调用 LLM 生成结构化摘要
 
-* **保留策略**：尾部 10K tokens / 5 条消息原文保留，通过 `_align_keep_start_to_tool_pair()` 确保 tool\_use↔tool\_result 配对不被拆散
+* **保留策略**：尾部 10K tokens / 5 条消息原文保留，通过 `_align_keep_start_to_tool_pair()` 确保 tool_use↔tool_result 配对不被拆散
 
 * **RecoveryState**：压缩时保留最近读取的文件内容（最多 5 个，每文件 5K tokens）和激活的 Skill SOP（总预算 25K tokens）
 
@@ -255,11 +255,11 @@ Agent 采用标准 ReAct（Reasoning + Acting）循环：
 
 
 ```
-\# 克隆仓库
+# 克隆仓库
 
-git clone \<repo-url> && cd MewCode-Agent
+git clone <repo-url> && cd MewCode-Agent
 
-\# 创建虚拟环境
+# 创建虚拟环境
 
 uv venv
 
@@ -267,7 +267,7 @@ uv venv
 
 source .venv/bin/activate  # Linux/macOS
 
-\# 安装依赖
+# 安装依赖
 
 uv pip install -e .
 ```
@@ -277,17 +277,17 @@ uv pip install -e .
 
 
 ```
-\# Anthropic
+# Anthropic
 
-set ANTHROPIC\_API\_KEY=your-key-here       # Windows
+set ANTHROPIC_API_KEY=your-key-here       # Windows
 
-export ANTHROPIC\_API\_KEY=your-key-here    # Linux/macOS
+export ANTHROPIC_API_KEY=your-key-here    # Linux/macOS
 
-\# OpenAI
+# OpenAI
 
-set OPENAI\_API\_KEY=your-key-here
+set OPENAI_API_KEY=your-key-here
 
-export OPENAI\_API\_KEY=your-key-here
+export OPENAI_API_KEY=your-key-here
 ```
 
 ### 创建配置文件
@@ -299,43 +299,43 @@ export OPENAI\_API\_KEY=your-key-here
 ```
 providers:
 
-&#x20; - name: claude
+  - name: claude
 
-&#x20;   protocol: anthropic
+    protocol: anthropic
 
-&#x20;   base\_url: https://api.anthropic.com
+    base_url: https://api.anthropic.com
 
-&#x20;   model: claude-sonnet-4-5-20250929
+    model: claude-sonnet-4-5-20250929
 
-&#x20;   api\_key: \${ANTHROPIC\_API\_KEY}
+    api_key: ${ANTHROPIC_API_KEY}
 
-&#x20;   thinking: true
+    thinking: true
 
-permission\_mode: default
+permission_mode: default
 
-mcp\_servers: \[]
+mcp_servers: []
 
-enable\_fork: false
+enable_fork: false
 
-enable\_verification\_agent: false
+enable_verification_agent: false
 
-teammate\_mode: ""
+teammate_mode: ""
 
-enable\_coordinator\_mode: false
+enable_coordinator_mode: false
 
-hooks: \[]
+hooks: []
 
 worktree:
 
-&#x20; symlink\_directories:
+  symlink_directories:
 
-&#x20;   - node\_modules
+    - node_modules
 
-&#x20;   - .venv
+    - .venv
 
-&#x20; stale\_cleanup\_interval: 3600
+  stale_cleanup_interval: 3600
 
-&#x20; stale\_cutoff\_hours: 24
+  stale_cutoff_hours: 24
 ```
 
 ### Harness Engineering 配置
@@ -343,59 +343,58 @@ worktree:
 
 
 ```
-compact:&#x20;
+compact: 
 
-&#x20;   utilization\_threshold: 0.85&#x20;
+    utilization_threshold: 0.85 
+    min_keep_messages: 3
 
-&#x20;   min\_keep\_messages: 3
+critic: 
 
-critic:&#x20;
+    enabled: false
 
-&#x20;   enabled: false
+rate_limit: 
 
-rate\_limit:&#x20;
+    enabled: true 
 
-&#x20;   enabled: true&#x20;
+    default_max_per_minute: 30 
 
-&#x20;   default\_max\_per\_minute: 30&#x20;
+    per_tool: 
 
-&#x20;   per\_tool:&#x20;
+      Bash: 10 
 
-&#x20;     Bash: 10&#x20;
-
-&#x20;     WriteFile: 20
+      WriteFile: 20
 
 evolution:
 
-&#x20;   enabled: true
+    enabled: true
 
-&#x20;   auto\_trigger: true
+    auto_trigger: true
 
-&#x20;   min\_traces\_to\_trigger: 10
+    min_traces_to_trigger: 10
 
-&#x20;   max\_auto\_skills: 20
+    max_auto_skills: 20
 
-&#x20;   token\_increase\_threshold: 0.15
+    token_increase_threshold: 0.15
 
-&#x20;   # 成功经验路径配置
+    # 成功经验路径配置
 
-&#x20;   success\_enabled: true
+    success_enabled: true
 
-&#x20;   success\_iteration\_threshold: 8     # 迭代数 ≥ 此值视为复杂任务
+    success_iteration_threshold: 8     # 迭代数 ≥ 此值视为复杂任务
 
-&#x20;   success\_tool\_call\_threshold: 10    # 工具调用数 ≥ 此值视为复杂任务
+    success_tool_call_threshold: 10    # 工具调用数 ≥ 此值视为复杂任务
 
-&#x20;   success\_promotion\_recurrence: 2    # 同类成功复发达此值晋升正式
+    success_promotion_recurrence: 2    # 同类成功复发达此值晋升正式
 
-&#x20;   success\_match\_enabled: true        # 任务开始时做 Skill 注入匹配
+    success_match_enabled: true        # 任务开始时做 Skill 注入匹配
 
-&#x20;   success\_match\_timeout: 8.0         # 匹配侧路调用超时（秒）
+    success_match_timeout: 8.0         # 匹配侧路调用超时（秒）
 
-&#x20;   success\_iteration\_reduction\_threshold: 0.20  # 迭代降幅阈值
+    success_iteration_reduction_threshold: 0.20  # 迭代降幅阈值
 
-allow\_self\_modification: false
+allow_self_modification: false
 
-allow\_self\_evolution: false            # 自进化元权限开关（控制双路）
+allow_self_evolution: false            # 自进化元权限开关（控制双路）
 ```
 
 ### 启动
@@ -493,7 +492,7 @@ Skills 存放在 `~/.mewcode/skills/` 和 `<project>/.mewcode/skills/`，支持�
 | `general-purpose` | 通用子 Agent，拥有全部工具                                       |
 | `explore`         | 代码探索 Agent，专注搜索和理解代码                                   |
 | `plan`            | 规划 Agent，专注制定执行计划                                      |
-| `verification`    | 验证 Agent，专注审查和验证代码（需 enable\_verification\_agent=true） |
+| `verification`    | 验证 Agent，专注审查和验证代码（需 enable_verification_agent=true） |
 
 Agent 定义存放在 `~/.mewcode/agents/` 和 `<project>/.mewcode/agents/`，支持热重载。
 
@@ -506,33 +505,33 @@ Agent 定义存放在 `~/.mewcode/agents/` 和 `<project>/.mewcode/agents/`，�
 
 
 ```
-mcp\_servers:
+mcp_servers:
 
-&#x20; - name: filesystem
+  - name: filesystem
 
-&#x20;   command: npx
+    command: npx
 
-&#x20;   args:
+    args:
 
-&#x20;     - -y
+      - -y
 
-&#x20;     - @modelcontextprotocol/server-filesystem
+      - @modelcontextprotocol/server-filesystem
 
-&#x20;     - /path/to/allowed/dir
+      - /path/to/allowed/dir
 
-&#x20; - name: github
+  - name: github
 
-&#x20;   command: npx
+    command: npx
 
-&#x20;   args:
+    args:
 
-&#x20;     - -y
+      - -y
 
-&#x20;     - @modelcontextprotocol/server-github
+      - @modelcontextprotocol/server-github
 
-&#x20;   env:
+    env:
 
-&#x20;     GITHUB\_PERSONAL\_ACCESS\_TOKEN: \${GITHUB\_TOKEN}
+      GITHUB_PERSONAL_ACCESS_TOKEN: ${GITHUB_TOKEN}
 ```
 
 ## Hook 钩子系统
@@ -544,37 +543,37 @@ mcp\_servers:
 ```
 hooks:
 
-&#x20; - id: lint-on-write
+  - id: lint-on-write
 
-&#x20;   event: post\_tool\_use
+    event: post_tool_use
 
-&#x20;   tool\_name: WriteFile
+    tool_name: WriteFile
 
-&#x20;   condition: "file\_path.endswith('.py')"
+    condition: "file_path.endswith('.py')"
 
-&#x20;   command: ruff check \$FILE\_PATH
+    command: ruff check $FILE_PATH
 
-&#x20; - id: format-on-write
+  - id: format-on-write
 
-&#x20;   event: post\_tool\_use
+    event: post_tool_use
 
-&#x20;   tool\_name: WriteFile
+    tool_name: WriteFile
 
-&#x20;   condition: "file\_path.endswith('.py')"
+    condition: "file_path.endswith('.py')"
 
-&#x20;   command: ruff format \$FILE\_PATH
+    command: ruff format $FILE_PATH
 
-&#x20; - id: notify-on-error
+  - id: notify-on-error
 
-&#x20;   event: error
+    event: error
 
-&#x20;   action\_type: http
+    action_type: http
 
-&#x20;   url: https://hooks.example.com/alert
+    url: https://hooks.example.com/alert
 
-&#x20;   method: POST
+    method: POST
 
-&#x20;   body: '{"error": "\$ERROR", "tool": "\$TOOL\_NAME"}'
+    body: '{"error": "$ERROR", "tool": "$TOOL_NAME"}'
 ```
 
 支持的变量占位符：`$EVENT`、`$TOOL_NAME`、`$FILE_PATH`、`$MESSAGE`、`$ERROR`、`$TOOL_ARGS.<key>`
@@ -627,9 +626,9 @@ MewCode Coding-Agent/
 
 ├── mewcode/                          # 项目核心源码目录
 
-│   ├── \_\_main\_\_.py                   # CLI 入口（mewcode 命令）
+│   ├── __main__.py                   # CLI 入口（mewcode 命令）
 
-│   ├── \_\_init\_\_.py                   # 包初始化
+│   ├── __init__.py                   # 包初始化
 
 │   ├── agent.py                      # Agent 主循环实现，支持 ReAct / Plan Mode 双推理模式
 
@@ -653,15 +652,15 @@ MewCode Coding-Agent/
 
 │   ├── styles.tcss                   # Textual TUI 样式表
 
-│   ├── permission\_dialog.py          # TUI 权限确认弹窗
+│   ├── permission_dialog.py          # TUI 权限确认弹窗
 
-│   ├── plan\_dialog.py                # TUI Plan Mode 规划弹窗
+│   ├── plan_dialog.py                # TUI Plan Mode 规划弹窗
 
-│   ├── session\_dialog.py             # TUI 会话选择弹窗
+│   ├── session_dialog.py             # TUI 会话选择弹窗
 
-│   ├── askuser\_dialog.py             # TUI AskUser 交互弹窗
+│   ├── askuser_dialog.py             # TUI AskUser 交互弹窗
 
-│   ├── teammate\_tree.py              # TUI 团队 Agent 树展示组件
+│   ├── teammate_tree.py              # TUI 团队 Agent 树展示组件
 
 │   ├── agents/                       # 子 Agent 多智能体核心模块
 
@@ -669,9 +668,9 @@ MewCode Coding-Agent/
 
 │   │   ├── loader.py                 # Agent 加载器，三级优先级：项目 > 用户 > 内置
 
-│   │   ├── task\_manager.py           # 多子任务调度管理器
+│   │   ├── task_manager.py           # 多子任务调度管理器
 
-│   │   ├── tool\_filter.py            # Agent 工具权限过滤器
+│   │   ├── tool_filter.py            # Agent 工具权限过滤器
 
 │   │   ├── fork.py                   # Fork 子 Agent 分发逻辑
 
@@ -715,7 +714,7 @@ MewCode Coding-Agent/
 
 │   │       ├── skill.py              # /skill — 技能管理
 
-│   │       ├── skill\_register.py     # /skill-register — 注册自定义技能
+│   │       ├── skill_register.py     # /skill-register — 注册自定义技能
 
 │   │       ├── status.py             # /status — 系统状态查看
 
@@ -751,11 +750,11 @@ MewCode Coding-Agent/
 
 │   │   ├── manager.py                # MCP 服务生命周期管理器
 
-│   │   └── tool\_wrapper.py           # MCP 工具标准化包装转换层
+│   │   └── tool_wrapper.py           # MCP 工具标准化包装转换层
 
 │   ├── memory/                       # 跨会话持久记忆系统
 
-│   │   ├── auto\_memory.py            # 异步记忆提取，自动分类四类业务记忆
+│   │   ├── auto_memory.py            # 异步记忆提取，自动分类四类业务记忆
 
 │   │   ├── session.py                # JSONL 会话持久化、压缩边界控制
 
@@ -777,7 +776,7 @@ MewCode Coding-Agent/
 
 │   │   ├── audit.py                  # AuditLogger 会话级操作审计日志
 
-│   │   └── rate\_limit.py             # RateLimiter 单工具粒度限流控制器
+│   │   └── rate_limit.py             # RateLimiter 单工具粒度限流控制器
 
 │   ├── skills/                       # Skill 自定义技能包体系
 
@@ -805,35 +804,35 @@ MewCode Coding-Agent/
 
 │   │   ├── progress.py               # 团队任务进度追踪
 
-│   │   ├── shared\_task.py            # 团队共享任务定义
+│   │   ├── shared_task.py            # 团队共享任务定义
 
 │   │   ├── transcript.py             # 团队对话转录
 
-│   │   ├── backend\_detect.py         # 终端后端自动检测
+│   │   ├── backend_detect.py         # 终端后端自动检测
 
-│   │   ├── spawn\_tmux.py             # 启动独立 tmux 终端面板 Worker
+│   │   ├── spawn_tmux.py             # 启动独立 tmux 终端面板 Worker
 
-│   │   ├── spawn\_iterm2.py           # 启动独立 iTerm2 终端面板 Worker
+│   │   ├── spawn_iterm2.py           # 启动独立 iTerm2 终端面板 Worker
 
-│   │   └── spawn\_inprocess.py        # 进程内轻量 Worker 启动逻辑
+│   │   └── spawn_inprocess.py        # 进程内轻量 Worker 启动逻辑
 
 │   ├── tools/                        # 工具注册表与工具实现层
 
 │   │   ├── base.py                   # Tool 基类、LLM 流式输出事件标准定义
 
-│   │   ├── agent\_tool.py             # Agent 内置工具，同步/异步/Git 隔离三种执行模式
+│   │   ├── agent_tool.py             # Agent 内置工具，同步/异步/Git 隔离三种执行模式
 
-│   │   ├── file\_state\_cache.py       # 文件读取状态缓存，强制 read-before-edit 约束
+│   │   ├── file_state_cache.py       # 文件读取状态缓存，强制 read-before-edit 约束
 
 │   │   ├── impl/                     # 工具实现
 
-│   │   │   └── tool\_search.py        # ToolSearch 延迟加载工具搜索
+│   │   │   └── tool_search.py        # ToolSearch 延迟加载工具搜索
 
-│   │   ├── read\_file.py              # ReadFile 工具
+│   │   ├── read_file.py              # ReadFile 工具
 
-│   │   ├── write\_file.py             # WriteFile 工具
+│   │   ├── write_file.py             # WriteFile 工具
 
-│   │   ├── edit\_file.py              # EditFile 工具（精确 search/replace）
+│   │   ├── edit_file.py              # EditFile 工具（精确 search/replace）
 
 │   │   ├── bash.py                   # Bash 命令执行工具
 
@@ -841,31 +840,31 @@ MewCode Coding-Agent/
 
 │   │   ├── grep.py                   # Grep 正则搜索工具
 
-│   │   ├── ask\_user.py               # AskUser 向用户提问工具
+│   │   ├── ask_user.py               # AskUser 向用户提问工具
 
-│   │   ├── load\_skill.py             # LoadSkill 技能加载工具
+│   │   ├── load_skill.py             # LoadSkill 技能加载工具
 
-│   │   ├── send\_message.py           # SendMessage 团队消息工具
+│   │   ├── send_message.py           # SendMessage 团队消息工具
 
-│   │   ├── synthetic\_output.py       # SyntheticOutput 协调者结构化输出工具
+│   │   ├── synthetic_output.py       # SyntheticOutput 协调者结构化输出工具
 
-│   │   ├── task\_create.py            # TaskCreate 任务创建工具
+│   │   ├── task_create.py            # TaskCreate 任务创建工具
 
-│   │   ├── task\_get.py               # TaskGet 任务详情工具
+│   │   ├── task_get.py               # TaskGet 任务详情工具
 
-│   │   ├── task\_list.py              # TaskList 任务列表工具
+│   │   ├── task_list.py              # TaskList 任务列表工具
 
-│   │   ├── task\_update.py            # TaskUpdate 任务更新工具
+│   │   ├── task_update.py            # TaskUpdate 任务更新工具
 
-│   │   ├── team\_create.py            # TeamCreate 团队创建工具
+│   │   ├── team_create.py            # TeamCreate 团队创建工具
 
-│   │   ├── team\_delete.py            # TeamDelete 团队删除工具
+│   │   ├── team_delete.py            # TeamDelete 团队删除工具
 
-│   │   ├── enter\_worktree.py         # EnterWorktree 进入隔离工作树工具
+│   │   ├── enter_worktree.py         # EnterWorktree 进入隔离工作树工具
 
-│   │   ├── exit\_worktree.py          # ExitWorktree 退出隔离工作树工具
+│   │   ├── exit_worktree.py          # ExitWorktree 退出隔离工作树工具
 
-│   │   └── exit\_plan\_mode.py         # ExitPlanMode 退出规划模式工具
+│   │   └── exit_plan_mode.py         # ExitPlanMode 退出规划模式工具
 
 │   ├── workflow/                     # Loop Engineering 工作流循环引擎
 
@@ -897,43 +896,43 @@ MewCode Coding-Agent/
 
 │   ├── harness/                      # Harness Engineering 标准化运行基座
 
-│   │   ├── hook\_manager.py           # HookManager 钩子运行时管理
+│   │   ├── hook_manager.py           # HookManager 钩子运行时管理
 
-│   │   ├── config\_manager.py         # ConfigManager 动态配置管理
+│   │   ├── config_manager.py         # ConfigManager 动态配置管理
 
-│   │   ├── permission\_manager.py     # PermissionManager 权限运行时管控
+│   │   ├── permission_manager.py     # PermissionManager 权限运行时管控
 
 │   │   ├── tools.py                  # Harness 内置自调控工具集（AddHook/RemoveHook/UpdateConfig 等）
 
-│   │   ├── backup/                   # \[数据目录] 进化前 Skill 备份快照存放处（BackupManager 管理）
+│   │   ├── backup/                   # [数据目录] 进化前 Skill 备份快照存放处（BackupManager 管理）
 
-│   │   ├── skills/                   # \[数据目录] 自进化自动生成的 Skill 文件存放处（SkillGenerator 输出）
+│   │   ├── skills/                   # [数据目录] 自进化自动生成的 Skill 文件存放处（SkillGenerator 输出）
 
-│   │   ├── traces/                   # \[数据目录] 执行轨迹 JSONL 按日分片存放处（ExecutionTraceStore 管理）
+│   │   ├── traces/                   # [数据目录] 执行轨迹 JSONL 按日分片存放处（ExecutionTraceStore 管理）
 
 │   │   └── evolution/                # Agent 自进化子系统
 
 │   │       ├── manager.py            # EvolutionManager 进化子系统门面
 
-│   │       ├── decision\_loop.py      # EvolutionDecisionLoop 6+2 阶段进化决策主控（失败+成功双路）
+│   │       ├── decision_loop.py      # EvolutionDecisionLoop 6+2 阶段进化决策主控（失败+成功双路）
 
-│   │       ├── trace\_store.py        # ExecutionTraceStore + TraceCollector 执行轨迹采集
+│   │       ├── trace_store.py        # ExecutionTraceStore + TraceCollector 执行轨迹采集
 
-│   │       ├── problem\_classifier.py # ProblemClassifier 失败模式 LLM 分类器
+│   │       ├── problem_classifier.py # ProblemClassifier 失败模式 LLM 分类器
 
-│   │       ├── skill\_generator.py    # SkillGenerator 基于证据的 Skill 自动生成
+│   │       ├── skill_generator.py    # SkillGenerator 基于证据的 Skill 自动生成
 
-│   │       ├── success\_detector.py   # SuccessDetector 复杂成功任务识别器
+│   │       ├── success_detector.py   # SuccessDetector 复杂成功任务识别器
 
-│   │       ├── success\_generator.py  # SuccessSkillGenerator 成功经验指南型 Skill 生成
+│   │       ├── success_generator.py  # SuccessSkillGenerator 成功经验指南型 Skill 生成
 
-│   │       ├── skill\_matcher.py      # SkillMatcher 语义匹配器（晋升+注入两用）
+│   │       ├── skill_matcher.py      # SkillMatcher 语义匹配器（晋升+注入两用）
 
 │   │       ├── evaluator.py          # EvolutionEvaluator 历史用例重放评估（失败+成功双模式）
 
 │   │       ├── backup.py             # BackupManager 进化前自动备份与回滚
 
-│   │       ├── skill\_meta.py         # SkillMetaManager 自动生成 Skill 元信息与状态机管理
+│   │       ├── skill_meta.py         # SkillMetaManager 自动生成 Skill 元信息与状态机管理
 
 │   │       ├── models.py             # 进化系统数据模型（Trace/Pattern/Skill/Eval/Record/SuccessSignal）
 
@@ -1013,15 +1012,15 @@ MewCode Coding-Agent/
 
 
 ```
-\# 安装开发依赖
+# 安装开发依赖
 
 uv sync
 
-\# 运行
+# 运行
 
 uv run mewcode
 
-\# 测试
+# 测试
 
 uv run pytest
 ```
